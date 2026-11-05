@@ -1,0 +1,17 @@
+{
+  "name": "Cookiefinance",
+  "short_name": "Cookiefinance",
+  "start_url": "index.html",
+  "display": "standalone",
+  "background_color": "#FDFBF7",
+  "theme_color": "#4A3525",
+  "description": "Deine sichere, DSGVO-konforme Finanz- und Gläubigerverwaltung im Cookie-Design.",
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/5406/5406001.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

@@ -1,0 +1,833 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cookiefinance</title>
+    <link rel="manifest" href="manifest.json">
+    <style>
+        :root {
+            --bg-color: #FDFBF7;
+            --card-color: #F5EDE0;
+            --primary-color: #4A3525;
+            --accent-color: #D2B48C;
+            --text-color: #4A3525;
+            --success-color: #5E7D5A;
+            --danger-color: #A94442;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        body { background-color: var(--bg-color); color: var(--text-color); height: 100vh; overflow: hidden; }
+        
+        /* Sperrbildschirm */
+        #lock-screen {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background-color: var(--primary-color); color: #FFF;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            z-index: 10000; transition: all 0.3s ease;
+        }
+        .pin-pad { display: grid; grid-template-columns: repeat(3, 70px); gap: 15px; margin-top: 20px; }
+        .pin-btn {
+            width: 70px; height: 70px; border-radius: 50%; border: 2px solid var(--accent-color);
+            background: transparent; color: #FFF; font-size: 24px; cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .pin-btn:active { background: var(--accent-color); }
+        .pin-display { font-size: 32px; letter-spacing: 10px; margin-bottom: 20px; height: 40px; }
+        
+        /* App Layout */
+        .app-container { display: flex; height: 100vh; }
+        
+        /* Sidebar */
+        .sidebar {
+            width: 220px; background-color: var(--card-color);
+            border-right: 2px solid var(--accent-color);
+            display: flex; flex-direction: column; padding: 15px; overflow-y: auto;
+        }
+        .sidebar h2 { font-size: 20px; margin-bottom: 20px; text-align: center; color: var(--primary-color); }
+        .month-btn {
+            width: 100%; padding: 10px; margin-bottom: 8px; border: 1px solid var(--accent-color);
+            background-color: #FFF; border-radius: 8px; cursor: pointer; text-align: left;
+            font-weight: 600; color: var(--primary-color); transition: all 0.2s;
+        }
+        .month-btn.active, .month-btn:hover { background-color: var(--primary-color); color: #FFF; }
+        
+        /* Main Content */
+        .main-content { flex: 1; padding: 25px; overflow-y: auto; display: flex; flex-direction: column; gap: 20px; }
+        
+        /* Header Area */
+        .app-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--accent-color); padding-bottom: 15px; }
+        .app-header h1 { color: var(--primary-color); }
+        .header-actions { display: flex; gap: 10px; }
+        .btn {
+            padding: 10px 15px; border-radius: 8px; border: none; cursor: pointer; font-weight: bold;
+            transition: opacity 0.2s; background-color: var(--primary-color); color: #FFF;
+        }
+        .btn:hover { opacity: 0.9; }
+        .btn-accent { background-color: var(--accent-color); color: var(--primary-color); }
+        .btn-danger { background-color: var(--danger-color); color: #FFF; }
+        
+        /* 3-Pillar Top Metrics */
+        .metrics-grid { display: grid; grid-template-columns: repeat(3, 100px); gap: 20px; }
+        @media(min-width: 600px) { .metrics-grid { grid-template-columns: repeat(3, 1fr); } }
+        .metric-card {
+            background-color: var(--card-color); border-radius: 12px; padding: 20px;
+            border: 1px solid var(--accent-color); text-align: center;
+        }
+        .metric-card h3 { font-size: 14px; text-transform: uppercase; margin-bottom: 5px; opacity: 0.8; }
+        .metric-card p { font-size: 24px; font-weight: bold; }
+        
+        /* Section Containers */
+        .section-box { background-color: #FFF; border: 1px solid var(--accent-color); border-radius: 12px; padding: 20px; }
+        .section-title { font-size: 18px; margin-bottom: 15px; color: var(--primary-color); display: flex; justify-content: space-between; align-items: center; }
+        
+        /* Tables & Lists */
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid var(--card-color); }
+        th { background-color: var(--card-color); color: var(--primary-color); }
+        
+        /* Forms */
+        .form-group { margin-bottom: 12px; display: flex; flex-direction: column; gap: 5px; }
+        .form-group label { font-size: 14px; font-weight: 600; }
+        .form-group input, .form-group select { padding: 10px; border-radius: 8px; border: 1px solid var(--accent-color); background-color: #FDFBF7; width: 100%; }
+        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        
+        /* Categories Live Cards */
+        .cats-flex { display: flex; flex-wrap: wrap; gap: 10px; }
+        .cat-tag { padding: 8px 12px; background-color: var(--card-color); border-radius: 20px; font-size: 14px; font-weight: 600; border: 1px solid var(--accent-color); }
+        
+        /* Badges */
+        .badge { padding: 4px 8px; border-radius: 6px; font-size: 12px; font-weight: bold; display: inline-block; }
+        .badge-open { background-color: #F2E3CD; color: #8A6D3B; }
+        .badge-paid { background-color: #DFF0D8; color: #3C763D; }
+        
+        /* Modal Window */
+        .modal {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.5); display: none; align-items: center; justify-content: center; z-index: 5000;
+        }
+        .modal-content { background: #FFF; padding: 25px; border-radius: 12px; width: 100%; max-width: 500px; border: 2px solid var(--primary-color); max-height: 90vh; overflow-y: auto; }
+        
+        .progress-bar-bg { width: 100%; background-color: #E0E0E0; border-radius: 10px; height: 10px; margin-top: 5px; overflow: hidden; }
+        .progress-bar-fill { background-color: var(--success-color); height: 100%; width: 0%; transition: width 0.3s; }
+    </style>
+</head>
+<body>
+
+    <!-- SPERRBILDSCHIRM -->
+    <div id="lock-screen">
+        <h2 style="font-size: 28px; margin-bottom: 5px;">🍪 Cookiefinance</h2>
+        <p style="opacity: 0.8; margin-bottom: 20px;">Sicherheitszaun aktiv</p>
+        <div class="pin-display" id="pin-display"></div>
+        <div class="pin-pad">
+            <button class="pin-btn" onclick="pressPin('1')">1</button>
+            <button class="pin-btn" onclick="pressPin('2')">2</button>
+            <button class="pin-btn" onclick="pressPin('3')">3</button>
+            <button class="pin-btn" onclick="pressPin('4')">4</button>
+            <button class="pin-btn" onclick="pressPin('5')">5</button>
+            <button class="pin-btn" onclick="pressPin('6')">6</button>
+            <button class="pin-btn" onclick="pressPin('7')">7</button>
+            <button class="pin-btn" onclick="pressPin('8')">8</button>
+            <button class="pin-btn" onclick="pressPin('9')">9</button>
+            <button class="pin-btn" onclick="biometricSim()">📱</button>
+            <button class="pin-btn" onclick="pressPin('0')">0</button>
+            <button class="pin-btn" onclick="clearPin()">⌫</button>
+        </div>
+        <p style="margin-top: 20px; font-size: 14px; cursor: pointer; text-decoration: underline;" onclick="forgotPin()">PIN vergessen?</p>
+    </div>
+
+    <div class="app-container">
+        <!-- SIDEBAR MIT MONATEN -->
+        <aside class="sidebar">
+            <h2>Cookiefinance</h2>
+            <div id="months-list"></div>
+        </aside>
+
+        <!-- MAIN WINDOW -->
+        <main class="main-content">
+            <header class="app-header">
+                <div>
+                    <h1 id="current-view-title">Januar Übersicht</h1>
+                </div>
+                <div class="header-actions">
+                    <span id="timeout-display" style="align-self: center; font-size: 13px; opacity: 0.7; margin-right: 10px;"></span>
+                    <button class="btn btn-accent" onclick="openModal('modal-transaction')">➕ Buchung</button>
+                    <button class="btn btn-accent" onclick="openModal('modal-creditor')">➕ Gläubiger</button>
+                    <button class="btn" onclick="lockApp()">🔒 Sperren</button>
+                </div>
+            </header>
+
+            <!-- 3-PILLAR METRICS -->
+            <div class="metrics-grid">
+                <div class="metric-card" style="border-left: 5px solid var(--success-color);">
+                    <h3>Einnahmen</h3>
+                    <p id="total-income">0,00 €</p>
+                </div>
+                <div class="metric-card" style="border-left: 5px solid var(--danger-color);">
+                    <h3>Ausgaben</h3>
+                    <p id="total-expense">0,00 €</p>
+                </div>
+                <div class="metric-card" style="border-left: 5px solid var(--primary-color);">
+                    <h3>Kassenstand</h3>
+                    <p id="total-balance">0,00 €</p>
+                </div>
+            </div>
+
+            <!-- KATEGORIEN DEÜBERSICHT -->
+            <div class="section-box">
+                <div class="section-title">📊 Kategorie-Übersicht des Monats</div>
+                <div class="cats-flex" id="categories-summary-container"></div>
+            </div>
+
+            <!-- BUCHUNGSLISTE MIT LIVE-SUCHE -->
+            <div class="section-box">
+                <div class="section-title">
+                    <span>🧾 Laufende Buchungen</span>
+                    <input type="text" id="search-bar" placeholder="🔍 Suchen nach Kategorie, Name..." style="padding: 6px 12px; border-radius: 8px; border: 1px solid var(--accent-color); font-size: 14px; width: 220px;" oninput="renderTransactions()">
+                </div>
+                <div style="overflow-x: auto;">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Typ</th>
+                                <th>Kategorie</th>
+                                <th>Beschreibung</th>
+                                <th>Betrag</th>
+                                <th>Modus</th>
+                            </tr>
+                        </thead>
+                        <tbody id="transactions-table-body"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- SCHULDEN & GLÄUBIGER-ÜBERSICHT -->
+            <div class="section-box">
+                <div class="section-title">
+                    <span>📉 Gläubiger-Stammdaten & Schuldenverwaltung</span>
+                    <div style="font-size: 16px; font-weight: bold; color: var(--danger-color);">Gesamtschulden: <span id="global-debt-display">0,00 €</span></div>
+                </div>
+                <div style="overflow-x: auto;">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Gläubiger</th>
+                                <th>Aktenzeichen</th>
+                                <th>IBAN / Zweck</th>
+                                <th>Rate (Monat)</th>
+                                <th>Restschuld / Fortschritt</th>
+                                <th>Status</th>
+                                <th>Aktionen</th>
+                            </tr>
+                        </thead>
+                        <tbody id="creditors-table-body"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- LOHNPFÄNDUNGSRECHNER -->
+            <div class="section-box">
+                <div class="section-title">⚖️ Integrierter Lohnpfändungsrechner (Gesetzlicher Freibetrag)</div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Monatliches Netto-Gehalt (€)</label>
+                        <input type="number" id="pfand-netto" value="2200" oninput="calculatePfand()">
+                    </div>
+                    <div class="form-group">
+                        <label>Unterhaltspflichtige Personen (Kinder/Ehepartner)</label>
+                        <select id="pfand-unterhalt" onchange="calculatePfand()">
+                            <option value="0">0 Personen</option>
+                            <option value="1">1 Person</option>
+                            <option value="2">2 Personen</option>
+                            <option value="3">3 Personen</option>
+                        </select>
+                    </div>
+                </div>
+                <div style="margin-top: 15px; padding: 15px; background: var(--card-color); border-radius: 8px; display: grid; grid-template-columns: 1fr 1fr; gap: 15px; text-align: center;">
+                    <div>
+                        <div style="font-size: 13px; opacity: 0.8; font-weight: 600;">🛡️ Geschützter Freibetrag</div>
+                        <div style="font-size: 20px; font-weight: bold; color: var(--success-color);" id="pfand-freibetrag-val">1.579,99 €</div>
+                    </div>
+                    <div>
+                        <div style="font-size: 13px; opacity: 0.8; font-weight: 600;">💸 Pfändbarer Abzugsbetrag</div>
+                        <div style="font-size: 20px; font-weight: bold; color: var(--danger-color);" id="pfand-abzug-val">284,32 €</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SETTINGS & DSGVO -->
+            <div class="section-box">
+                <div class="section-title">⚙️ Sicherheit, Inaktivität & DSGVO-Datenschutz</div>
+                <div class="form-row" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));">
+                    <div class="form-group">
+                        <label>⏱️ Automatisches Sperren nach:</label>
+                        <select id="timeout-select" onchange="updateTimeoutSetting()">
+                            <option value="30">30 Sekunden</option>
+                            <option value="120" selected>2 Minuten</option>
+                            <option value="300">5 Minuten</option>
+                            <option value="0">Deaktiviert</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>🔐 PIN-Code ändern</label>
+                        <button class="btn btn-accent" onclick="openModal('modal-pin-change')">PIN anpassen</button>
+                    </div>
+                    <div class="form-group">
+                        <label>📥 DSGVO Daten-Auszug</label>
+                        <button class="btn" onclick="exportCSV()">Als CSV für Berater exportieren</button>
+                    </div>
+                    <div class="form-group">
+                        <label>⚠️ Datenlöschung (Art. 17 DSGVO)</label>
+                        <button class="btn btn-danger" onclick="factoryReset()">Alle Daten vernichten</button>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- MODAL WINDOW: BUCHUNG -->
+    <div id="modal-transaction" class="modal" onclick="closeModalOnOutsideClick(event, 'modal-transaction')">
+        <div class="modal-content">
+            <h3 style="margin-bottom:15px; color:var(--primary-color);">Neue Buchung erfassen</h3>
+            <div class="form-group">
+                <label>Typ</label>
+                <select id="tx-type" onchange="toggleTxCategories()">
+                    <option value="income">Einnahme (+)</option>
+                    <option value="expense">Ausgabe (-)</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Kategorie wählen oder selbst erstellen</label>
+                <input type="text" id="tx-category" list="default-categories-list" placeholder="Z.B. Miete, Lebensmittel, Gehalt...">
+                <datalist id="default-categories-list"></datalist>
+            </div>
+            <div class="form-group">
+                <label>Beschreibung / Empfänger</label>
+                <input type="text" id="tx-desc" placeholder="Z.B. REWE Einkäufe, Arbeitgeber GmbH">
+            </div>
+            <div class="form-group">
+                <label>Betrag (€)</label>
+                <input type="number" id="tx-amount" step="0.01" placeholder="0,00">
+            </div>
+            <div class="form-group">
+                <label style="display:flex; align-items:center; gap:8px;">
+                    <input type="checkbox" id="tx-recurring" checked> Wiederkehrend (jeden Monat automatisch verbuchen)
+                </label>
+            </div>
+            <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:15px;">
+                <button class="btn btn-accent" onclick="saveTransaction()">Speichern</button>
+                <button class="btn" onclick="closeModal('modal-transaction')">Abbrechen</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL WINDOW: GLÄUBIGER -->
+    <div id="modal-creditor" class="modal" onclick="closeModalOnOutsideClick(event, 'modal-creditor')">
+        <div class="modal-content">
+            <h3 style="margin-bottom:15px; color:var(--primary-color);">Neuen Gläubiger erfassen</h3>
+            <div class="form-group">
+                <label>Name des Gläubigers</label>
+                <input type="text" id="cred-name" placeholder="Z.B. Sparkasse, Inkassobüro XY">
+            </div>
+            <div class="form-group">
+                <label>Aktenzeichen / Kundennummer</label>
+                <input type="text" id="cred-az" placeholder="Z.B. AZ-99281-X">
+            </div>
+            <div class="form-group">
+                <label>IBAN des Empfängers</label>
+                <input type="text" id="cred-iban" placeholder="DE.. .... .... .... .... ..">
+            </div>
+            <div class="form-group">
+                <label>Spezifischer Verwendungszweck</label>
+                <input type="text" id="cred-purpose" placeholder="Z.B. Rate Autokredit">
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Gesamtschuld (€)</label>
+                    <input type="number" id="cred-total" step="0.01" placeholder="0,00">
+                </div>
+                <div class="form-group">
+                    <label>Monatsrate (€)</label>
+                    <input type="number" id="cred-rate" step="0.01" placeholder="0,00">
+                </div>
+            </div>
+            <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:15px;">
+                <button class="btn btn-accent" onclick="saveCreditor()">Gläubiger eintragen</button>
+                <button class="btn" onclick="closeModal('modal-creditor')">Abbrechen</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL WINDOW: PIN ÄNDERN -->
+    <div id="modal-pin-change" class="modal" onclick="closeModalOnOutsideClick(event, 'modal-pin-change')">
+        <div class="modal-content">
+            <h3 style="margin-bottom:15px; color:var(--primary-color);">Sicherheits-PIN ändern</h3>
+            <div class="form-group">
+                <label>Alte PIN</label>
+                <input type="password" id="pin-old" maxlength="4" placeholder="••••">
+            </div>
+            <div class="form-group">
+                <label>Neue 4-stellige PIN</label>
+                <input type="password" id="pin-new1" maxlength="4" placeholder="••••">
+            </div>
+            <div class="form-group">
+                <label>Neue PIN bestätigen</label>
+                <input type="password" id="pin-new2" maxlength="4" placeholder="••••">
+            </div>
+            <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:15px;">
+                <button class="btn btn-accent" onclick="changePin()">PIN aktualisieren</button>
+                <button class="btn" onclick="closeModal('modal-pin-change')">Abbrechen</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MAIN APP JAVASCRIPT STATE ENGINE -->
+    <script>
+        // State variables
+        let appPin = "1234";
+        let currentMonth = "Januar";
+        let activeTimeout = 120; // in seconds
+        let lastActivityTime = Date.now();
+        let pinInput = "";
+        
+        const months = ["Januar", "Februar", "März", "April", "Mai", "Juni", "Juli", "August", "September", "Oktober", "November", "Dezember"];
+        
+        const defaultIncomeCategories = ["Gehalt", "Nebenjob", "Unterhalt", "Kindergeld", "Sonstiges"];
+        const defaultExpenseCategories = ["Miete & Wohnen", "Lebensmittel", "Auto & Transport", "Schuldenrate", "Versicherungen", "Freizeit & Hobby"];
+
+        // Seed data structures
+        let transactions = [];
+        let creditors = [];
+
+        // Initialization
+        window.onload = function() {
+            loadFromLocalStorage();
+            if (transactions.length === 0 && creditors.length === 0) {
+                seedInitialData();
+            }
+            renderMonths();
+            selectMonth("Januar");
+            calculatePfand();
+            startInactivityTrackers();
+        };
+
+        function seedInitialData() {
+            // Seed base recurring items across all months
+            months.forEach(m => {
+                transactions.push({ id: Math.random().toString(), month: m, type: "income", category: "Gehalt", desc: "Monatlicher Lohn", amount: 2500.00, recurring: true });
+                transactions.push({ id: Math.random().toString(), month: m, type: "expense", category: "Miete & Wohnen", desc: "Warmmiete Wohnung", amount: 850.00, recurring: true });
+                transactions.push({ id: Math.random().toString(), month: m, type: "expense", category: "Lebensmittel", desc: "Supermarkt Wocheneinkäufe", amount: 320.00, recurring: true });
+            });
+            // Seed Creditors
+            creditors.push({ id: "1", name: "Sparkasse Dortmund", az: "K-2024-9981", iban: "DE89370500001122334455", purpose: "Autokredit Tilgung", total: 12000.00, paid: 5000.00, rate: 250.00 });
+            creditors.push({ id: "2", name: "Otto (GmbH & Co KG)", az: "RE-5541-A", iban: "DE44200400009988776655", purpose: "Bestellte Elektronik", total: 1200.00, paid: 900.00, rate: 100.00 });
+            
+            saveToLocalStorage();
+        }
+
+        // LocalStorage DSGVO Helpers
+        function saveToLocalStorage() {
+            localStorage.setItem("cf_pin", appPin);
+            localStorage.setItem("cf_transactions", JSON.stringify(transactions));
+            localStorage.setItem("cf_creditors", JSON.stringify(creditors));
+            localStorage.setItem("cf_timeout", activeTimeout);
+        }
+
+        function loadFromLocalStorage() {
+            if (localStorage.getItem("cf_pin")) appPin = localStorage.getItem("cf_pin");
+            if (localStorage.getItem("cf_timeout")) activeTimeout = parseInt(localStorage.getItem("cf_timeout"));
+            if (localStorage.getItem("cf_transactions")) transactions = JSON.parse(localStorage.getItem("cf_transactions"));
+            if (localStorage.getItem("cf_creditors")) creditors = JSON.parse(localStorage.getItem("cf_creditors"));
+            document.getElementById("timeout-select").value = activeTimeout;
+        }
+
+        // Security Lockscreen Engine
+        function pressPin(num) {
+            if (pinInput.length < 4) {
+                pinInput += num;
+                document.getElementById("pin-display").innerText = "•".repeat(pinInput.length);
+            }
+            if (pinInput === appPin) {
+                unlockApp();
+            } else if (pinInput.length === 4) {
+                setTimeout(() => {
+                    alert("Falscher PIN-Code! Bitte erneut versuchen.");
+                    clearPin();
+                }, 100);
+            }
+        }
+        function clearPin() { pinInput = ""; document.getElementById("pin-display").innerText = ""; }
+        
+        function unlockApp() {
+            document.getElementById("lock-screen").style.top = "-100%";
+            lastActivityTime = Date.now();
+            clearPin();
+        }
+        function lockApp() {
+            document.getElementById("lock-screen").style.top = "0";
+            clearPin();
+        }
+        function biometricSim() {
+            if (navigator.credentials) {
+                alert("📱 Biometrischer Sensor (Touch ID / Face ID) getriggert... Verifiziert!");
+                unlockApp();
+            } else {
+                alert("Biometrie wird auf diesem Webbrowser-Typ nicht unterstützt. Bitte benutze das PIN-Feld.");
+            }
+        }
+        function forgotPin() {
+            let email = prompt("Um einen Notfall-Code anzufordern, gib deine registrierte E-Mail-Adresse ein:");
+            if (email) {
+                let code = Math.floor(1000 + Math.random() * 9000);
+                alert(`📧 DSGVO-Sicherheits-Service:\nEin Wiederherstellungscode wurde generiert.\n\nCode: ${code}`);
+                let inputCode = prompt("Gib den 4-stelligen Bestätigungscode ein, um deine PIN zurückzusetzen:");
+                if (inputCode == code) {
+                    let newPin = prompt("Gib deine neue 4-stellige PIN ein:");
+                    if (newPin && newPin.length === 4 && !isNaN(newPin)) {
+                        appPin = newPin;
+                        saveToLocalStorage();
+                        alert("PIN erfolgreich aktualisiert! Du kannst dich jetzt einloggen.");
+                    } else { alert("Ungültige PIN."); }
+                } else { alert("Falscher Code."); }
+            }
+        }
+
+        // Inactivity Watcher
+        function startInactivityTrackers() {
+            ["mousemove", "mousedown", "keypress", "touchstart", "scroll"].forEach(evt => {
+                document.addEventListener(evt, () => { lastActivityTime = Date.now(); });
+            });
+            setInterval(() => {
+                if (activeTimeout === 0) {
+                    document.getElementById("timeout-display").innerText = "Timeout: Aus";
+                    return;
+                }
+                let diff = Math.floor((Date.now() - lastActivityTime) / 1000);
+                let remaining = activeTimeout - diff;
+                if (remaining <= 0) {
+                    lockApp();
+                } else {
+                    document.getElementById("timeout-display").innerText = `Sperre in ${remaining}s`;
+                }
+            }, 1000);
+        }
+        function updateTimeoutSetting() {
+            activeTimeout = parseInt(document.getElementById("timeout-select").value);
+            saveToLocalStorage();
+        }
+
+        // Sidebar Month UI
+        function renderMonths() {
+            const container = document.getElementById("months-list");
+            container.innerHTML = "";
+            months.forEach(m => {
+                let btn = document.createElement("button");
+                btn.className = "month-btn";
+                btn.id = `btn-${m}`;
+                btn.innerText = m;
+                btn.onclick = () => selectMonth(m);
+                container.appendChild(btn);
+            });
+        }
+
+        function selectMonth(m) {
+            currentMonth = m;
+            months.forEach(mo => document.getElementById(`btn-${mo}`).classList.remove("active"));
+            document.getElementById(`btn-${m}`).classList.add("active");
+            document.getElementById("current-view-title").innerText = `${m} Übersicht`;
+            
+            toggleTxCategories();
+            renderDashboard();
+        }
+
+        // Data Aggregation & Rendering
+        function renderDashboard() {
+            renderTransactions();
+            renderCreditors();
+            calculateCategoriesOverview();
+        }
+
+        function renderTransactions() {
+            const body = document.getElementById("transactions-table-body");
+            const filter = document.getElementById("search-bar").value.toLowerCase();
+            body.innerHTML = "";
+
+            let monthTxs = transactions.filter(t => t.month === currentMonth);
+            let incSum = 0, expSum = 0;
+
+            monthTxs.forEach(t => {
+                if (t.type === "income") incSum += t.amount;
+                else expSum += t.amount;
+
+                // Live search filter logic
+                if (filter && !t.category.toLowerCase().includes(filter) && !t.desc.toLowerCase().includes(filter)) {
+                    return;
+                }
+
+                let row = document.createElement("tr");
+                row.innerHTML = `
+                    <td style="color:${t.type==='income'?'var(--success-color)':'var(--danger-color)'}; font-weight:bold;">${t.type==='income'?'+ Ein':'- Aus'}</td>
+                    <td><strong>${t.category}</strong></td>
+                    <td>${t.desc}</td>
+                    <td>${t.amount.toFixed(2)} €</td>
+                    <td><span class="badge badge-open" style="background:#EBF3F9; color:#31708F;">${t.recurring?'Dauerhaft':'Einmalig'}</span></td>
+                `;
+                body.appendChild(row);
+            });
+
+            document.getElementById("total-income").innerText = `${incSum.toFixed(2)} €`;
+            document.getElementById("total-expense").innerText = `${expSum.toFixed(2)} €`;
+            document.getElementById("total-balance").innerText = `${(incSum - expSum).toFixed(2)} €`;
+        }
+
+        function renderCreditors() {
+            const body = document.getElementById("creditors-table-body");
+            body.innerHTML = "";
+            let globalDebt = 0;
+
+            creditors.forEach((c, index) => {
+                let rest = c.total - c.paid;
+                if (rest < 0) rest = 0;
+                globalDebt += rest;
+
+                let progressPct = (c.paid / c.total) * 100;
+                if (progressPct > 100) progressPct = 100;
+
+                let statusBadge = rest === 0 ? '<span class="badge badge-paid">BEZAHLT</span>' : '<span class="badge badge-open">OFFEN</span>';
+                let actionBtn = rest === 0 ? '-' : `<button class="btn btn-accent" style="padding:4px 8px; font-size:12px;" onclick="payCreditorRate('${c.id}')">💶 Rate zahlen</button>`;
+
+                let row = document.createElement("tr");
+                row.innerHTML = `
+                    <td><code>#00${index+1}</code></td>
+                    <td><strong>${c.name}</strong></td>
+                    <td><span style="font-size:13px; font-family:monospace;">${c.az}</span></td>
+                    <td>
+                        <div style="font-size:11px; color:#555;">${c.iban}</div>
+                        <div style="font-size:12px; font-weight:600; color:var(--primary-color);">${c.purpose}</div>
+                    </td>
+                    <td><strong>${c.rate.toFixed(2)} €</strong></td>
+                    <td>
+                        <div>${rest.toFixed(2)} € / ${c.total.toFixed(2)} €</div>
+                        <div class="progress-bar-bg"><div class="progress-bar-fill" style="width:${progressPct}%"></div></div>
+                    </td>
+                    <td>${statusBadge}</td>
+                    <td>${actionBtn}</td>
+                `;
+                body.appendChild(row);
+            });
+
+            document.getElementById("global-debt-display").innerText = `${globalDebt.toFixed(2)} €`;
+        }
+
+        function calculateCategoriesOverview() {
+            const container = document.getElementById("categories-summary-container");
+            container.innerHTML = "";
+            
+            let monthTxs = transactions.filter(t => t.month === currentMonth);
+            let catTotals = {};
+
+            monthTxs.forEach(t => {
+                let amt = t.type === 'income' ? t.amount : -t.amount;
+                catTotals[t.category] = (catTotals[t.category] || 0) + amt;
+            });
+
+            let keys = Object.keys(catTotals);
+            if (keys.length === 0) {
+                container.innerHTML = "<p style='font-size:13px; opacity:0.6;'>Keine Buchungen in diesem Monat vorhanden.</p>";
+                return;
+            }
+
+            keys.forEach(cat => {
+                let val = catTotals[cat];
+                let tag = document.createElement("div");
+                tag.className = "cat-tag";
+                tag.style.borderColor = val >= 0 ? "var(--success-color)" : "var(--accent-color)";
+                tag.innerHTML = `${cat}: <span style="color:${val>=0?'var(--success-color)':'var(--danger-color)'}; font-weight:bold;">${val.toFixed(2)} €</span>`;
+                container.appendChild(tag);
+            });
+        }
+
+        // Business Logic Actions
+        function toggleTxCategories() {
+            const type = document.getElementById("tx-type").value;
+            const dl = document.getElementById("default-categories-list");
+            dl.innerHTML = "";
+            let list = type === 'income' ? defaultIncomeCategories : defaultExpenseCategories;
+            list.forEach(c => {
+                let opt = document.createElement("option");
+                opt.value = c;
+                dl.appendChild(opt);
+            });
+        }
+
+        function saveTransaction() {
+            const category = document.getElementById("tx-category").value.trim();
+            const desc = document.getElementById("tx-desc").value.trim();
+            const amount = parseFloat(document.getElementById("tx-amount").value);
+            const type = document.getElementById("tx-type").value;
+            const recurring = document.getElementById("tx-recurring").checked;
+
+            if (!category || !desc || isNaN(amount) || amount <= 0) {
+                alert("Bitte fülle alle Pflichtfelder mit gültigen Werten aus.");
+                return;
+            }
+
+            if (recurring) {
+                // Insert into all 12 months
+                months.forEach(m => {
+                    transactions.push({ id: Math.random().toString(), month: m, type, category, desc, amount, recurring: true });
+                });
+            } else {
+                // Just current selected month
+                transactions.push({ id: Math.random().toString(), month: currentMonth, type, category, desc, amount, recurring: false });
+            }
+
+            saveToLocalStorage();
+            renderDashboard();
+            closeModal('modal-transaction');
+            // Clean inputs
+            document.getElementById("tx-category").value = "";
+            document.getElementById("tx-desc").value = "";
+            document.getElementById("tx-amount").value = "";
+        }
+
+        function saveCreditor() {
+            const name = document.getElementById("cred-name").value.trim();
+            const az = document.getElementById("cred-az").value.trim();
+            const iban = document.getElementById("cred-iban").value.trim();
+            const purpose = document.getElementById("cred-purpose").value.trim();
+            const total = parseFloat(document.getElementById("cred-total").value);
+            const rate = parseFloat(document.getElementById("cred-rate").value);
+
+            if (!name || !az || !iban || isNaN(total) || isNaN(rate) || total <= 0 || rate <= 0) {
+                alert("Bitte fülle alle Gläubiger-Stammdaten aus.");
+                return;
+            }
+
+            creditors.push({ id: Math.random().toString(), name, az, iban, purpose, total, paid: 0, rate });
+            saveToLocalStorage();
+            renderDashboard();
+            closeModal('modal-creditor');
+            
+            // Clean inputs
+            document.getElementById("cred-name").value = "";
+            document.getElementById("cred-az").value = "";
+            document.getElementById("cred-iban").value = "";
+            document.getElementById("cred-purpose").value = "";
+            document.getElementById("cred-total").value = "";
+            document.getElementById("cred-rate").value = "";
+        }
+
+        function payCreditorRate(id) {
+            let cred = creditors.find(c => c.id === id);
+            if (!cred) return;
+
+            let remaining = cred.total - cred.paid;
+            let allocation = Math.min(cred.rate, remaining);
+
+            if (allocation <= 0) return;
+
+            cred.paid += allocation;
+            
+            // Automatically log an official expense entry for this specific month
+            transactions.push({
+                id: Math.random().toString(),
+                month: currentMonth,
+                type: "expense",
+                category: "Schuldenrate",
+                desc: `Rate an ${cred.name} (${cred.az})`,
+                amount: allocation,
+                recurring: false
+            });
+
+            saveToLocalStorage();
+            renderDashboard();
+            alert(`Erfolgreich verbucht! Ratenzahlung von ${allocation.toFixed(2)} € an ${cred.name} wurde als Ausgabe registriert.`);
+        }
+
+        // Lohnpfändungsrechner Logic (German Law Table Baseline Simulation)
+        function calculatePfand() {
+            let netto = parseFloat(document.getElementById("pfand-netto").value);
+            let kids = parseInt(document.getElementById("pfand-unterhalt").value);
+
+            if (isNaN(netto) || netto < 0) return;
+
+            // Simple simulation of German statutory attachment table boundaries
+            let freibetrag = 1579.99; // Base protection
+            if (kids === 1) freibetrag = 2170.00;
+            if (kids === 2) freibetrag = 2510.00;
+            if (kids >= 3) freibetrag = 2840.00;
+
+            let abzug = 0;
+            if (netto > freibetrag) {
+                let überschuss = netto - freibetrag;
+                // Pfändungsquote depending roughly on dependencies
+                let quote = 0.7; 
+                if (kids === 1) quote = 0.5;
+                if (kids === 2) quote = 0.4;
+                if (kids >= 3) quote = 0.3;
+                abzug = überschuss * quote;
+            }
+
+            document.getElementById("pfand-freibetrag-val").innerText = `${freibetrag.toFixed(2)} €`;
+            document.getElementById("pfand-abzug-val").innerText = `${abzug.toFixed(2)} €`;
+        }
+
+        function changePin() {
+            let old = document.getElementById("pin-old").value;
+            let n1 = document.getElementById("pin-new1").value;
+            let n2 = document.getElementById("pin-new2").value;
+
+            if (old !== appPin) { alert("Alte PIN ist inkorrekt."); return; }
+            if (n1.length !== 4 || isNaN(n1)) { alert("Die neue PIN muss 4 Ziffern lang sein."); return; }
+            if (n1 !== n2) { alert("Die neuen PIN-Bestätigungen stimmen nicht überein."); return; }
+
+            appPin = n1;
+            saveToLocalStorage();
+            alert("PIN-Code erfolgreich geändert!");
+            closeModal('modal-pin-change');
+            document.getElementById("pin-old").value = "";
+            document.getElementById("pin-new1").value = "";
+            document.getElementById("pin-new2").value = "";
+        }
+
+        // Export Functionality for Authorities / Advisory
+        function exportCSV() {
+            let csvContent = "data:text/csv;charset=utf-8,";
+            csvContent += "ID;Glaeubiger;Aktenzeichen;IBAN;Verwendungszweck;Gesamtschuld;Bezahlt;Restschuld\r\n";
+            
+            creditors.forEach((c, i) => {
+                let rest = c.total - c.paid;
+                csvContent += `#00${i+1};"${c.name}";"${c.az}";"${c.iban}";"${c.purpose}";${c.total.toFixed(2)};${c.paid.toFixed(2)};${rest.toFixed(2)}\r\n`;
+            });
+
+            let encodedUri = encodeURI(csvContent);
+            let link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", "Cookiefinance_Glaeubiger_DSGVO.csv");
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        function factoryReset() {
+            if (confirm("🚨 ACHTUNG (Art. 17 DSGVO)! Möchtest du wirklich alle lokalen Daten, Buchungen und Passwörter unwiderruflich von diesem Gerät löschen? Dies kann nicht rückgängig gemacht werden!")) {
+                localStorage.clear();
+                transactions = [];
+                creditors = [];
+                appPin = "1234";
+                activeTimeout = 120;
+                seedInitialData();
+                renderDashboard();
+                lockApp();
+                alert("Sämtliche personenbezogenen Daten wurden DSGVO-konform vernichtet und auf Werkseinstellungen zurückgesetzt.");
+            }
+        }
+
+        // Modal Helpers
+        function openModal(id) { document.getElementById(id).style.display = "flex"; }
+        function closeModal(id) { document.getElementById(id).style.display = "none"; }
+        function closeModalOnOutsideClick(e, id) { if(e.target.id === id) closeModal(id); }
+    </script>
+</body>
+</html>
